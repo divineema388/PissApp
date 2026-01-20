@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
@@ -48,9 +47,8 @@ class ChatViewModel : ViewModel() {
                     .get()
                     .await()
                 
-                val currentUserId = auth.currentUser?.uid ?: ""
-                val messagesList = querySnapshot.documents.mapNotNull { document ->
-                    document.toMessage(currentUserId)
+                val messagesList = querySnapshot.documents.map { document ->
+                    document.toMessage()
                 }
                 _messages.value = messagesList
             } catch (e: Exception) {
@@ -66,14 +64,12 @@ class ChatViewModel : ViewModel() {
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    error.printStackTrace()
                     return@addSnapshotListener
                 }
                 
                 snapshot?.let { querySnapshot ->
-                    val currentUserId = auth.currentUser?.uid ?: ""
-                    val messagesList = querySnapshot.documents.mapNotNull { document ->
-                        document.toMessage(currentUserId)
+                    val messagesList = querySnapshot.documents.map { document ->
+                        document.toMessage()
                     }
                     _messages.value = messagesList
                 }
@@ -82,15 +78,15 @@ class ChatViewModel : ViewModel() {
     
     fun sendMessage(text: String) {
         val currentUser = auth.currentUser ?: return
-        val message = hashMapOf<String, Any>(
-            "text" to text,
-            "senderId" to currentUser.uid,
-            "senderName" to currentUser.displayName ?: "Anonymous",
-            "timestamp" to Timestamp.now()
-        )
         
         viewModelScope.launch {
             try {
+                val message = mapOf(
+                    "text" to text,
+                    "senderId" to currentUser.uid,
+                    "senderName" to (currentUser.displayName ?: "Anonymous"),
+                    "timestamp" to Timestamp.now()
+                )
                 db.collection("messages").add(message).await()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -98,19 +94,15 @@ class ChatViewModel : ViewModel() {
         }
     }
     
-}
-
-// Extension function moved outside the class
-fun com.google.firebase.firestore.DocumentSnapshot.toMessage(currentUserId: String): Message? {
-    val timestamp = this.getTimestamp("timestamp")
-    val senderId = this.getString("senderId") ?: ""
-    
-    return Message(
-        id = this.id,
-        text = this.getString("text") ?: "",
-        senderId = senderId,
-        senderName = this.getString("senderName") ?: "",
-        timestamp = timestamp?.toDate() ?: Date(),
-        isCurrentUser = senderId == currentUserId
-    )
+    private fun com.google.firebase.firestore.DocumentSnapshot.toMessage(): Message {
+        val currentUserId = auth.currentUser?.uid ?: ""
+        return Message(
+            id = id,
+            text = getString("text") ?: "",
+            senderId = getString("senderId") ?: "",
+            senderName = getString("senderName") ?: "",
+            timestamp = getTimestamp("timestamp")?.toDate() ?: Date(),
+            isCurrentUser = getString("senderId") == currentUserId
+        )
+    }
 }
