@@ -48,8 +48,9 @@ class ChatViewModel : ViewModel() {
                     .get()
                     .await()
                 
+                val currentUserId = auth.currentUser?.uid ?: ""
                 val messagesList = querySnapshot.documents.mapNotNull { document ->
-                    document.toMessage()
+                    document.toMessage(currentUserId)
                 }
                 _messages.value = messagesList
             } catch (e: Exception) {
@@ -70,8 +71,9 @@ class ChatViewModel : ViewModel() {
                 }
                 
                 snapshot?.let { querySnapshot ->
+                    val currentUserId = auth.currentUser?.uid ?: ""
                     val messagesList = querySnapshot.documents.mapNotNull { document ->
-                        document.toMessage()
+                        document.toMessage(currentUserId)
                     }
                     _messages.value = messagesList
                 }
@@ -96,23 +98,19 @@ class ChatViewModel : ViewModel() {
         }
     }
     
-    private fun com.google.firebase.firestore.DocumentSnapshot.toMessage(): Message? {
-        return try {
-            val currentUserId = auth.currentUser?.uid ?: ""
-            val timestamp = this.getTimestamp("timestamp")
-            val senderId = this.getString("senderId") ?: ""
-            
-            Message(
-                id = this.id,
-                text = this.getString("text") ?: "",
-                senderId = senderId,
-                senderName = this.getString("senderName") ?: "",
-                timestamp = timestamp?.toDate() ?: Date(),
-                isCurrentUser = senderId == currentUserId
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
+}
+
+// Extension function moved outside the class
+fun com.google.firebase.firestore.DocumentSnapshot.toMessage(currentUserId: String): Message? {
+    val timestamp = this.getTimestamp("timestamp")
+    val senderId = this.getString("senderId") ?: ""
+    
+    return Message(
+        id = this.id,
+        text = this.getString("text") ?: "",
+        senderId = senderId,
+        senderName = this.getString("senderName") ?: "",
+        timestamp = timestamp?.toDate() ?: Date(),
+        isCurrentUser = senderId == currentUserId
+    )
 }
