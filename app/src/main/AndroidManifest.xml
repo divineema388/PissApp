@@ -7,7 +7,7 @@
     
     <application
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@drawable/ic_launcher"
         android:label="Piss App"
         android:theme="@android:style/Theme.Light.NoTitleBar">
         
