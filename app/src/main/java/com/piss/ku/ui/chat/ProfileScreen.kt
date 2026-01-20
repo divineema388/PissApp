@@ -47,8 +47,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.piss.ku.viewmodel.AuthViewModel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,9 +110,9 @@ fun ProfileScreen(
                 shape = CircleShape
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    val imageUri = profileImageUri ?: Uri.parse(currentUser?.profileImageUrl)
+                    val imageUri = profileImageUri ?: currentUser?.profileImageUrl?.let { Uri.parse(it) }
                     
-                    if (imageUri.toString().isNotEmpty()) {
+                    if (imageUri != null) {
                         Image(
                             painter = rememberAsyncImagePainter(
                                 ImageRequest.Builder(LocalContext.current)
@@ -159,18 +158,13 @@ fun ProfileScreen(
             Button(
                 onClick = {
                     isLoading = true
-                    runBlocking {
-                        launch {
-                            val success = viewModel.updateProfile(username, profileImageUri)
-                            isLoading = false
-                            showSuccess = success
-                            if (showSuccess) {
-                                // Reset success message after 2 seconds
-                                launch {
-                                    kotlinx.coroutines.delay(2000)
-                                    showSuccess = false
-                                }
-                            }
+                    LaunchedEffect(Unit) {
+                        val success = viewModel.updateProfile(username, profileImageUri)
+                        isLoading = false
+                        showSuccess = success
+                        if (showSuccess) {
+                            delay(2000)
+                            showSuccess = false
                         }
                     }
                 },

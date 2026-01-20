@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.firestore
@@ -52,7 +53,7 @@ class ChatViewModel : ViewModel() {
                 }
                 _messages.value = messagesList
             } catch (e: Exception) {
-                // Handle error
+                e.printStackTrace()
             } finally {
                 _isLoading.value = false
             }
@@ -63,7 +64,10 @@ class ChatViewModel : ViewModel() {
         db.collection("messages")
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
+                if (error != null) {
+                    error.printStackTrace()
+                    return@addSnapshotListener
+                }
                 
                 snapshot?.let { querySnapshot ->
                     val messagesList = querySnapshot.documents.mapNotNull { document ->
@@ -76,7 +80,7 @@ class ChatViewModel : ViewModel() {
     
     fun sendMessage(text: String) {
         val currentUser = auth.currentUser ?: return
-        val message = hashMapOf(
+        val message = hashMapOf<String, Any>(
             "text" to text,
             "senderId" to currentUser.uid,
             "senderName" to currentUser.displayName ?: "Anonymous",
@@ -87,19 +91,20 @@ class ChatViewModel : ViewModel() {
             try {
                 db.collection("messages").add(message).await()
             } catch (e: Exception) {
-                // Handle error
+                e.printStackTrace()
             }
         }
     }
     
     private fun com.google.firebase.firestore.DocumentSnapshot.toMessage(): Message {
         val currentUserId = auth.currentUser?.uid ?: ""
+        val timestamp = getTimestamp("timestamp")
         return Message(
             id = id,
             text = getString("text") ?: "",
             senderId = getString("senderId") ?: "",
             senderName = getString("senderName") ?: "",
-            timestamp = getTimestamp("timestamp")?.toDate() ?: Date(),
+            timestamp = timestamp?.toDate() ?: Date(),
             isCurrentUser = getString("senderId") == currentUserId
         )
     }

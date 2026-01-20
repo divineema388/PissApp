@@ -44,8 +44,7 @@ class MainActivity : ComponentActivity() {
 fun PissApp() {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = viewModel()
-    val authState by authViewModel.authState.collectAsState()
-
+    
     NavHost(
         navController = navController,
         startDestination = if (authViewModel.isUserLoggedIn()) "chat" else "login"
@@ -70,7 +69,9 @@ fun PissApp() {
             ChatScreen(
                 onLogout = {
                     authViewModel.signOut()
-                    navController.navigate("login")
+                    navController.navigate("login") {
+                        popUpTo("login") { inclusive = true }
+                    }
                 },
                 onProfileClick = { navController.navigate("profile") }
             )

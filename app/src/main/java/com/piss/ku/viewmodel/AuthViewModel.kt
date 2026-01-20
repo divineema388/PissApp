@@ -47,30 +47,29 @@ class AuthViewModel : ViewModel() {
     }
     
     private fun checkCurrentUser() {
-        auth.currentUser?.let { firebaseUser ->
-            viewModelScope.launch {
-                try {
-                    val userDoc = db.collection("users").document(firebaseUser.uid).get().await()
-                    val user = if (userDoc.exists()) {
-                        userDoc.toObject(User::class.java) ?: User(
-                            uid = firebaseUser.uid,
-                            email = firebaseUser.email ?: "",
-                            username = firebaseUser.displayName ?: "",
-                            profileImageUrl = firebaseUser.photoUrl?.toString() ?: ""
-                        )
-                    } else {
-                        User(
-                            uid = firebaseUser.uid,
-                            email = firebaseUser.email ?: "",
-                            username = firebaseUser.displayName ?: "",
-                            profileImageUrl = firebaseUser.photoUrl?.toString() ?: ""
-                        )
-                    }
-                    _currentUser.value = user
-                    _authState.value = AuthState.Success(user)
-                } catch (e: Exception) {
-                    _authState.value = AuthState.Error(e.message ?: "Error fetching user data")
+        val firebaseUser = auth.currentUser ?: return
+        viewModelScope.launch {
+            try {
+                val userDoc = db.collection("users").document(firebaseUser.uid).get().await()
+                val user = if (userDoc.exists()) {
+                    userDoc.toObject(User::class.java) ?: User(
+                        uid = firebaseUser.uid,
+                        email = firebaseUser.email ?: "",
+                        username = firebaseUser.displayName ?: "",
+                        profileImageUrl = firebaseUser.photoUrl?.toString() ?: ""
+                    )
+                } else {
+                    User(
+                        uid = firebaseUser.uid,
+                        email = firebaseUser.email ?: "",
+                        username = firebaseUser.displayName ?: "",
+                        profileImageUrl = firebaseUser.photoUrl?.toString() ?: ""
+                    )
                 }
+                _currentUser.value = user
+                _authState.value = AuthState.Success(user)
+            } catch (e: Exception) {
+                _authState.value = AuthState.Error(e.message ?: "Error fetching user data")
             }
         }
     }
@@ -132,14 +131,15 @@ class AuthViewModel : ViewModel() {
                 val storageRef = storage.reference
                 val imageRef = storageRef.child("profile_images/${user.uid}/${UUID.randomUUID()}")
                 val uploadTask = imageRef.putFile(uri).await()
-                profileImageUrl = uploadTask.metadata?.reference?.downloadUrl?.await()?.toString() ?: ""
+                val downloadUrl = uploadTask.metadata?.reference?.downloadUrl?.await()
+                profileImageUrl = downloadUrl?.toString() ?: ""
             }
             
             // Update Firebase Auth profile
             val profileUpdates = UserProfileChangeRequest.Builder()
                 .setDisplayName(username)
                 .apply {
-                    if (profileImageUri != null) {
+                    if (profileImageUrl.isNotEmpty()) {
                         setPhotoUri(Uri.parse(profileImageUrl))
                     }
                 }
@@ -158,6 +158,7 @@ class AuthViewModel : ViewModel() {
             _currentUser.value = updatedUser
             true
         } catch (e: Exception) {
+            e.printStackTrace()
             false
         }
     }
