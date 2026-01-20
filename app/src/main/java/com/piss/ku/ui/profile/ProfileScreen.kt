@@ -60,6 +60,7 @@ fun ProfileScreen(
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var showSuccess by remember { mutableStateOf(false) }
+    var shouldUpdate by remember { mutableStateOf(false) }  // NEW: Trigger state
     
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -70,6 +71,20 @@ fun ProfileScreen(
     LaunchedEffect(currentUser) {
         currentUser?.let {
             username = it.username
+        }
+    }
+    
+    // NEW: Handle update when shouldUpdate changes
+    LaunchedEffect(shouldUpdate) {
+        if (shouldUpdate) {
+            val success = viewModel.updateProfile(username, profileImageUri)
+            isLoading = false
+            showSuccess = success
+            if (showSuccess) {
+                delay(2000)
+                showSuccess = false
+            }
+            shouldUpdate = false
         }
     }
     
@@ -158,15 +173,7 @@ fun ProfileScreen(
             Button(
                 onClick = {
                     isLoading = true
-                    LaunchedEffect(Unit) {
-                        val success = viewModel.updateProfile(username, profileImageUri)
-                        isLoading = false
-                        showSuccess = success
-                        if (showSuccess) {
-                            delay(2000)
-                            showSuccess = false
-                        }
-                    }
+                    shouldUpdate = true  // CHANGED: Trigger LaunchedEffect instead
                 },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isLoading

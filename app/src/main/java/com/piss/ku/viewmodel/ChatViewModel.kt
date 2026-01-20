@@ -96,16 +96,23 @@ class ChatViewModel : ViewModel() {
         }
     }
     
-    private fun com.google.firebase.firestore.DocumentSnapshot.toMessage(): Message {
-        val currentUserId = auth.currentUser?.uid ?: ""
-        val timestamp = getTimestamp("timestamp")
-        return Message(
-            id = id,
-            text = getString("text") ?: "",
-            senderId = getString("senderId") ?: "",
-            senderName = getString("senderName") ?: "",
-            timestamp = timestamp?.toDate() ?: Date(),
-            isCurrentUser = getString("senderId") == currentUserId
-        )
+    private fun com.google.firebase.firestore.DocumentSnapshot.toMessage(): Message? {
+        return try {
+            val currentUserId = auth.currentUser?.uid ?: ""
+            val timestamp = this.getTimestamp("timestamp")
+            val senderId = this.getString("senderId") ?: ""
+            
+            Message(
+                id = this.id,
+                text = this.getString("text") ?: "",
+                senderId = senderId,
+                senderName = this.getString("senderName") ?: "",
+                timestamp = timestamp?.toDate() ?: Date(),
+                isCurrentUser = senderId == currentUserId
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 }
